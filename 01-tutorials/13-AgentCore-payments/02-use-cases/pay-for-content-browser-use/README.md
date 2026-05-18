@@ -8,15 +8,15 @@ each transaction."
 
 Without AgentCore payments, an agent that needs to pay for content must either hold
 a private key (exposing credentials to the model) or interrupt the user to complete
-the payment manually. This use case shows a third path: the agent **leverages AgentCore
+the payment manually. This use case shows a third path: the agent **uses AgentCore
 Payments for payment processing**, stays within human-set payment limits, and completes
 the entire browse-pay-extract flow autonomously from a managed Runtime container.
 
 The agent is **deployed to AgentCore Runtime** under `ProcessPaymentRole`, uses the
-**AgentCore Browser Tool** to navigate a paywalled website, reads the embedded x402
-payment requirement from the page DOM, calls `ProcessPayment` to generate a payment
-proof, interacts with the paywall UI, and returns the unlocked content — without any
-private key exposure or human intervention.
+**AgentCore Browser Tool** to navigate a paywalled website, reads the embedded
+x402 (HTTP 402 Payment Required) payment requirement from the page DOM, calls
+`ProcessPayment` to generate a payment proof, interacts with the paywall UI, and
+returns the unlocked content — without any private key exposure or human intervention.
 
 ### Use Case Details
 
@@ -30,7 +30,7 @@ private key exposure or human intervention.
 | LLM model           | Anthropic Claude Sonnet 4.6                                   |
 | Complexity          | Intermediate                                                  |
 | SDK used            | boto3 + AgentCore SDK + AgentCorePaymentsPlugin (Strands) + AgentCore CLI |
-| Wallet type         | Embedded crypto wallet (AgentCore-provisioned, Coinbase CDP)  |
+| Wallet type         | Embedded crypto wallet (AgentCore-provisioned, Coinbase Developer Platform (CDP))  |
 | Network             | Base Sepolia testnet (`eip155:84532`); Solana Devnet available |
 
 ---
@@ -132,7 +132,8 @@ OBSERVABILITY  (Step 7, automatic)
 CLEANUP
 ─────────────────────────────────────────────────────────────────────────────
 
-  agentcore remove all -y       — tears down Runtime, ECR, log groups
+  agentcore remove all          — tears down Runtime, ECR, log groups
+                                  (interactive confirm; review what's deleted)
   Session expiry                — agent can no longer spend after expiry
 ```
 
@@ -148,7 +149,8 @@ CLEANUP
   deployment serves any user the backend authorises.
 - **Embedded wallet.** AgentCore provisions the on-chain wallet — no pre-existing CDP
   wallet or funded account is required. The `linkedAccounts` email field ties the wallet
-  to a user identity. Coinbase embedded wallets are provisioned synchronously (no OTP step).
+  to a user identity. AgentCore provisions Coinbase embedded wallets synchronously
+  (no one-time password (OTP) step).
 - **Browser tool.** `AgentCoreBrowser` is a managed cloud Chromium session reached over
   WebSocket from inside the Runtime container. The content provider must be deployed to
   a public HTTPS URL — the browser cannot reach `localhost`.
@@ -156,6 +158,14 @@ CLEANUP
   Coinbase CDP today; swap the credential provider configuration in Step 3 for StripePrivy.
 
 ---
+
+## Cost considerations
+
+This use case provisions billable AWS resources: AgentCore Runtime, CloudWatch logs,
+ECR storage, CodeBuild minutes, CloudFront distribution, Lambda@Edge invocations, and
+Payment Manager operations. Charges accrue while resources are active. Run the
+[Cleanup](#cleanup) section when finished to remove all resources and stop charges.
+Payment runs in this sample target Base Sepolia testnet, which uses test-only USDC.
 
 ## Prerequisites
 
@@ -177,7 +187,7 @@ CLEANUP
 - A Coinbase Developer Platform (CDP) account with an API key
   - API key name, private key, and wallet secret are required (see `.env.sample`)
   - **Enable Delegated Signing** in your CDP project before running the agent:
-    go to [portal.cdp.coinbase.com](https://portal.cdp.coinbase.com) → your project → **Wallet** → **Embedded Wallets** → **Policies** → enable **Delegated signing**
+    go to the [Coinbase Developer Platform portal](https://portal.cdp.coinbase.com) → your project → **Wallet** → **Embedded Wallets** → **Policies** → enable **Delegated signing**
   - No pre-existing wallet needed — AgentCore provisions the embedded wallet for you
   - After provisioning, fund the wallet via the Circle faucet (https://faucet.circle.com)
 
@@ -239,7 +249,7 @@ Run all cells in order. The notebook will:
 3. Provision the embedded wallet resource stack (once per user):
    CredentialProvider → PaymentManager → PaymentConnector → EmbeddedCryptoWallet Instrument
    — then pause for you to fund the wallet via WalletHub and the Circle faucet
-3e. Verify wallet USDC balance via `GetPaymentInstrumentBalance` (briefly assumes
+3e. Verify wallet USD Coin (USDC) balance via `GetPaymentInstrumentBalance` (briefly assumes
     `ProcessPaymentRole` locally, only for the balance check)
 4. Create a payment session with budget and expiry (`ManagementRole`)
 4b. **Enable Payment Manager observability** — runs the 4-step vended log
@@ -351,8 +361,10 @@ rather than hardcoded IDs.
 
 Tear down in this order when you're done:
 
-1. **Runtime deployment** — `cd PayForContentRuntime && agentcore remove all -y`
+1. **Runtime deployment** — `cd PayForContentRuntime && agentcore remove all`
    (removes the AgentRuntime, the ECR repo, the CodeBuild project, and CloudWatch logs).
+   > **Warning:** this permanently deletes CloudWatch logs and ECR container images.
+   > Confirm at the prompt; do not pass `-y` unless you have already reviewed what will be removed.
 2. **Payment session** — expires automatically after `SESSION_EXPIRY_MINUTES`
    (60 minutes by default). No API call required to close it.
 3. **Payment manager / connector / instrument / credential provider** — delete via the
