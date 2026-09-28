@@ -8,10 +8,9 @@ import json
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from email.message import Message
-from typing import Any
+from typing import Any, Self
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlparse
-
 
 DEFAULT_PAY_TO = "0x1111111111111111111111111111111111111111"
 DEFAULT_NETWORK = "eip155:84532"
@@ -46,7 +45,7 @@ class InMemoryResponse(AbstractContextManager["InMemoryResponse"]):
     def read(self) -> bytes:
         return self.body
 
-    def __enter__(self) -> "InMemoryResponse":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
@@ -60,7 +59,7 @@ class InMemorySeller(AbstractContextManager["InMemorySeller"]):
     retries: int = 0
     base_url: str = "https://seller.local"
 
-    def __enter__(self) -> "InMemorySeller":
+    def __enter__(self) -> Self:
         return self
 
     def open(self, request: Any, timeout: int = 20) -> InMemoryResponse:

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
-from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.payments import PaymentManager
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent, tool
 from strands.models import BedrockModel
 
@@ -18,7 +19,6 @@ from buyer.runtime_context import (
     runtime_context,
     validate_seller_url,
 )
-
 
 app = BedrockAgentCoreApp()
 MODEL_ID = os.environ.get("MODEL_ID", "us.anthropic.claude-sonnet-4-6")
@@ -107,11 +107,7 @@ def handle_request(payload: dict[str, Any], context: Any = None) -> dict[str, An
     )
     result = agent(str(payload.get("prompt") or ""))
     content = result.message.get("content", [])
-    text = "\n".join(
-        block.get("text", "")
-        for block in content
-        if isinstance(block, dict) and block.get("text")
-    )
+    text = "\n".join(block.get("text", "") for block in content if isinstance(block, dict) and block.get("text"))
     return {"response": text or str(result)}
 
 

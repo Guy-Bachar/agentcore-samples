@@ -50,9 +50,7 @@ def validate_seller_url(resource_url: str, seller_base_url: str) -> None:
         or expected.username is not None
         or expected.password is not None
     ):
-        raise ValueError(
-            "seller_base_url must be an absolute HTTPS URL without embedded credentials"
-        )
+        raise ValueError("seller_base_url must be an absolute HTTPS URL without embedded credentials")
     if (resource.scheme, resource.netloc) != (expected.scheme, expected.netloc):
         raise PolicyDenied("POLICY_DENY: resource URL is outside the approved seller origin")
 

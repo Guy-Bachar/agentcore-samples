@@ -4,18 +4,17 @@ import json
 import sys
 import unittest
 from pathlib import Path
-from urllib.error import HTTPError
+from typing import Self
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from botocore.credentials import ReadOnlyCredentials
-
 
 SAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SAMPLE_ROOT))
 
-from buyer.core import PaymentRequirement, PolicyDenied  # noqa: E402
-from buyer.gateway import GatewayPolicyAuthorizer, GatewayPolicyContext  # noqa: E402
-
+from buyer.core import PaymentRequirement, PolicyDenied
+from buyer.gateway import GatewayPolicyAuthorizer, GatewayPolicyContext
 
 _TEST_ACCESS_KEY = "test-access-key"
 _TEST_CREDENTIAL = "unit-test-credential-placeholder"
@@ -42,7 +41,7 @@ class Response:
     def read(self) -> bytes:
         return self._body
 
-    def __enter__(self) -> Response:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -56,7 +55,7 @@ class RawResponse:
     def read(self) -> bytes:
         return self._body
 
-    def __enter__(self) -> RawResponse:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -110,9 +109,7 @@ class GatewayPolicyAuthorizerTest(unittest.TestCase):
 
     @patch("buyer.gateway._GATEWAY_OPENER")
     @patch("buyer.gateway.boto3.Session", return_value=Session())
-    def test_non_authorized_gateway_response_is_denied(
-        self, session: object, opener: object
-    ) -> None:
+    def test_non_authorized_gateway_response_is_denied(self, session: object, opener: object) -> None:
         del session
         opener.return_value = Response(
             {
@@ -129,9 +126,7 @@ class GatewayPolicyAuthorizerTest(unittest.TestCase):
 
     @patch("buyer.gateway._GATEWAY_OPENER")
     @patch("buyer.gateway.boto3.Session", return_value=Session())
-    def test_gateway_server_error_is_not_treated_as_policy_denial(
-        self, session: object, opener: object
-    ) -> None:
+    def test_gateway_server_error_is_not_treated_as_policy_denial(self, session: object, opener: object) -> None:
         del session
         opener.side_effect = HTTPError(
             url="https://gateway.example/mcp",

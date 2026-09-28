@@ -22,7 +22,6 @@ class _NoRedirect(HTTPRedirectHandler):
 
     def redirect_request(self, *args: Any, **kwargs: Any) -> None:
         del args, kwargs
-        return None
 
 
 _GATEWAY_OPENER = build_opener(_NoRedirect()).open
@@ -32,15 +31,8 @@ def _validate_gateway_url(gateway_url: str) -> None:
     """Require a direct HTTPS Policy Gateway endpoint without URL credentials."""
 
     parsed = urlsplit(gateway_url)
-    if (
-        parsed.scheme != "https"
-        or not parsed.netloc
-        or parsed.username is not None
-        or parsed.password is not None
-    ):
-        raise ValueError(
-            "policy_gateway_url must be an absolute HTTPS URL without embedded credentials"
-        )
+    if parsed.scheme != "https" or not parsed.netloc or parsed.username is not None or parsed.password is not None:
+        raise ValueError("policy_gateway_url must be an absolute HTTPS URL without embedded credentials")
 
 
 @dataclass(frozen=True)

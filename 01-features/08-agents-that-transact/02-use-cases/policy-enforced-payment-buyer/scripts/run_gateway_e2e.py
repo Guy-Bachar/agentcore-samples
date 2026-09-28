@@ -9,17 +9,15 @@ from dataclasses import replace
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 
-
 SAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SAMPLE_ROOT))
 
-from buyer.core import (  # noqa: E402
+from buyer.core import (
     PaymentRequirementError,
     PolicyDenied,
     fetch_payment_requirement,
 )
-from buyer.gateway import GatewayPolicyAuthorizer, GatewayPolicyContext  # noqa: E402
-
+from buyer.gateway import GatewayPolicyAuthorizer, GatewayPolicyContext
 
 REQUIRED_ENVIRONMENT = (
     "AWS_REGION",
@@ -34,10 +32,7 @@ def _required_environment() -> dict[str, str]:
     missing = [name for name, value in values.items() if not value]
     if missing:
         names = ", ".join(missing)
-        raise ValueError(
-            f"Missing required environment variable(s): {names}. "
-            "See README.md, Gateway E2E (no payment)."
-        )
+        raise ValueError(f"Missing required environment variable(s): {names}. See README.md, Gateway E2E (no payment).")
     return values
 
 
@@ -69,11 +64,7 @@ def main() -> None:
     )
 
     authorizer.authorize(requirement)
-    print(
-        "happy_path=AUTHORIZED "
-        f"amount={requirement.amount} "
-        f"recipient={_redact(requirement.pay_to)}"
-    )
+    print(f"happy_path=AUTHORIZED amount={requirement.amount} recipient={_redact(requirement.pay_to)}")
 
     changed_recipient = replace(
         requirement,
@@ -84,9 +75,7 @@ def main() -> None:
     except PolicyDenied:
         print("failure_path=DENIED scenario=changed_recipient")
     else:
-        raise RuntimeError(
-            "Failure path was authorized. The Policy must deny a changed recipient."
-        )
+        raise RuntimeError("Failure path was authorized. The Policy must deny a changed recipient.")
 
     print("payment_processing=NOT_RUN settlement=NOT_APPLICABLE")
 

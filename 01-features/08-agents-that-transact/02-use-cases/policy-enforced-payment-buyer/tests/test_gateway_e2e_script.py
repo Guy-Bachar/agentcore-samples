@@ -6,15 +6,13 @@ import unittest
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
-from urllib.error import URLError
 from unittest.mock import patch
-
+from urllib.error import URLError
 
 SAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SAMPLE_ROOT))
 
-from buyer.core import PaymentRequirement, PolicyDenied  # noqa: E402
-
+from buyer.core import PaymentRequirement, PolicyDenied
 
 SCRIPT_PATH = SAMPLE_ROOT / "scripts" / "run_gateway_e2e.py"
 SPEC = importlib.util.spec_from_file_location("run_gateway_e2e", SCRIPT_PATH)

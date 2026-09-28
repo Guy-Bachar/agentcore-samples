@@ -5,11 +5,10 @@ import unittest
 from pathlib import Path
 from urllib.request import Request
 
-
 SAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SAMPLE_ROOT))
 
-from buyer.core import (  # noqa: E402
+from buyer.core import (
     AllowlistPolicyAuthorizer,
     PaymentRequirementError,
     PolicyDenied,
@@ -17,7 +16,7 @@ from buyer.core import (  # noqa: E402
     SimulatedPaymentExecutor,
     _NoRedirect,
 )
-from buyer.local_demo import (  # noqa: E402
+from buyer.local_demo import (
     DEFAULT_AMOUNT,
     DEFAULT_ASSET,
     DEFAULT_NETWORK,

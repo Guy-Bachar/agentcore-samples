@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import base64
 import json
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Protocol
+from typing import Any, Protocol
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -24,7 +25,6 @@ class _NoRedirect(HTTPRedirectHandler):
 
     def redirect_request(self, *args: Any, **kwargs: Any) -> None:
         del args, kwargs
-        return None
 
 
 _DEFAULT_OPENER = build_opener(_NoRedirect()).open
@@ -93,15 +93,8 @@ def _validate_resource_url(resource_url: str) -> None:
     """Require a direct HTTPS seller URL without embedded credentials."""
 
     parsed = urlsplit(resource_url)
-    if (
-        parsed.scheme != "https"
-        or not parsed.netloc
-        or parsed.username is not None
-        or parsed.password is not None
-    ):
-        raise PaymentRequirementError(
-            "seller resource URL must be an absolute HTTPS URL without embedded credentials"
-        )
+    if parsed.scheme != "https" or not parsed.netloc or parsed.username is not None or parsed.password is not None:
+        raise PaymentRequirementError("seller resource URL must be an absolute HTTPS URL without embedded credentials")
 
 
 def parse_payment_requirement(
@@ -112,11 +105,7 @@ def parse_payment_requirement(
     """Parse the first accepted x402 requirement from a 402 response."""
 
     encoded = next(
-        (
-            value
-            for key, value in headers.items()
-            if key.lower() in {"payment-required", "x-payment-required"}
-        ),
+        (value for key, value in headers.items() if key.lower() in {"payment-required", "x-payment-required"}),
         "",
     )
     if not encoded:
@@ -163,9 +152,7 @@ def fetch_payment_requirement(
     request = Request(resource_url, headers={"Accept": "application/json"})
     try:
         with opener(request, timeout=20) as response:
-            raise PaymentRequirementError(
-                f"seller returned {response.status}; expected HTTP 402"
-            )
+            raise PaymentRequirementError(f"seller returned {response.status}; expected HTTP 402")
     except HTTPError as error:
         if error.code != 402:
             raise

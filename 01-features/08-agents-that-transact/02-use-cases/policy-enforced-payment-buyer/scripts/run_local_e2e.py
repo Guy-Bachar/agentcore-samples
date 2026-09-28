@@ -6,17 +6,16 @@ import json
 import sys
 from pathlib import Path
 
-
 SAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SAMPLE_ROOT))
 
-from buyer.core import (  # noqa: E402
+from buyer.core import (
     AllowlistPolicyAuthorizer,
     PolicyDenied,
     PolicyEnforcedBuyer,
     SimulatedPaymentExecutor,
 )
-from buyer.local_demo import (  # noqa: E402
+from buyer.local_demo import (
     DEFAULT_AMOUNT,
     DEFAULT_ASSET,
     DEFAULT_NETWORK,

@@ -4,12 +4,11 @@ import sys
 import unittest
 from pathlib import Path
 
-
 SAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SAMPLE_ROOT))
 
-from buyer.core import PolicyDenied  # noqa: E402
-from buyer.runtime_context import runtime_context, validate_seller_url  # noqa: E402
+from buyer.core import PolicyDenied
+from buyer.runtime_context import runtime_context, validate_seller_url
 
 
 class RuntimeContextTest(unittest.TestCase):
@@ -27,9 +26,7 @@ class RuntimeContextTest(unittest.TestCase):
             runtime_context(self.payload)
 
     def test_normalizes_and_enforces_the_seller_origin(self) -> None:
-        context = runtime_context(
-            {**self.payload, "seller_base_url": "https://seller.example/"}
-        )
+        context = runtime_context({**self.payload, "seller_base_url": "https://seller.example/"})
 
         self.assertEqual(context.seller_base_url, "https://seller.example")
         validate_seller_url("https://seller.example/premium", context.seller_base_url)
