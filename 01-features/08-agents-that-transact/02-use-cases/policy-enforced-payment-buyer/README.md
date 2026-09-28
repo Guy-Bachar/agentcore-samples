@@ -17,8 +17,7 @@ bounded purchase tool rather than a general-purpose HTTP tool.
 This directory is a buyer-side reference implementation. It does not deploy an
 AgentCore Policy Gateway, an x402 seller, an AgentCore Runtime, or AgentCore
 Payments lifecycle resources. Those components are deliberate external
-prerequisites. The local test is fully self-contained; the Gateway and Runtime
-paths require resources operated by the reader.
+prerequisites.
 
 ## Sample Details
 
@@ -28,10 +27,9 @@ paths require resources operated by the reader.
 | AgentCore components | Amazon Bedrock AgentCore Policy, Payments, Runtime |
 | Agent framework | Strands Agents |
 | Payment protocol | x402 `exact` (one selected requirement) |
-| Buyer interface | Python scripts and an AgentCore Runtime entry point |
+| Buyer interface | AgentCore Runtime entry point |
 | Example complexity | Intermediate |
-| Local validation | In-memory 402 seller and simulated payment proof |
-| Live payment validation | Not included |
+| Included code | Buyer, Policy Gateway client, Runtime context validation, and Cedar templates |
 
 ### Protocol Scope
 
@@ -47,30 +45,9 @@ to a buyer-approved ceiling. Keep that flow separate: an `upto` ceiling is not
 the final settlement amount, and it needs its own payment and settlement
 validation.
 
-## What This Sample Covers
-
-| Path | What it checks | Creates a payment proof or settlement |
-|:--|:--|:--|
-| Local E2E | Buyer ordering: 402 requirement, Policy decision, then seller retry | No |
-| Gateway E2E | A real Gateway accepts the seller requirement and denies a changed recipient | No |
-| Runtime entry point | The buyer can use AgentCore Payments after Gateway authorization | Potentially, when invoked against a live seller |
-
-**Important:** Gateway authorization and a generated payment header are not
-evidence of seller settlement. This sample labels settlement as
-`not-verified` and does not include a live settlement canary.
-
 ## Prerequisites
 
-### Local E2E
-
 - Python 3.11 or newer.
-- No AWS account, wallet, payment instrument, or network access is required.
-
-### Gateway E2E
-
-- Python 3.11 or newer.
-- Set `AWS_REGION` to the region where your Policy Gateway is deployed.
-- AWS credentials permitted to invoke your AgentCore Policy Gateway.
 - An AgentCore Policy Gateway target with an `authorize_payment` tool.
 - A Policy Engine attached to that Gateway in **ENFORCE** mode.
 - A Gateway execution role with `bedrock-agentcore:AuthorizeAction`,
@@ -81,33 +58,31 @@ evidence of seller settlement. This sample labels settlement as
 - A default-deny policy that permits the expected recipient, network, asset,
   amount, caller, and Gateway action.
 
-Author and validate policies in `LOG_ONLY` mode first. Promote the isolated
-test Gateway to `ENFORCE` before running this Gateway E2E; `LOG_ONLY` records
-the decision but does not block the changed-recipient request.
+Author and validate policies in `LOG_ONLY` mode first. Promote an isolated
+Gateway to `ENFORCE` only after the policy limits the seller resource,
+recipient, network, asset, amount, caller, and Gateway action.
 
-### Runtime Integration
+## Configure Payments With Quick Create
 
-- Complete the [AgentCore Payments quick start](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-getting-started.html)
-  to create current AgentCore Payments resources. The repository's
-  [Tutorial 00](../../00-getting-started/00-setup-agentcore-payments/) is companion
-  material for this sample.
-- **Recommended for Coinbase:** In the AgentCore Payments console, create a
-  Payment Manager and choose **Quick create with Coinbase** when you add the
-  connector. Complete the Coinbase authorization in the browser and wait for
-  the connector to become `READY`. Quick Create avoids manually obtaining or
-  storing Coinbase credentials. See [Create a Payment Manager and
-  Connector](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-create-manager.html).
-  This is a setup convenience, not a requirement of the buyer code: the buyer
-  remains provider-neutral and can use another configured Payment Manager.
-- Coinbase connector creation requires an AWS Marketplace subscription to
-  Coinbase Wallets for AgentCore Payments. Quick Create provisions only the
-  payment authorization and connector. It does not create a Payment Instrument
-  or Payment Session, fund a wallet, or grant transaction permissions.
-- Complete [Deploy to AgentCore Runtime](../../00-getting-started/02-deploy-to-agentcore-runtime/)
-  before packaging this entry point into a Runtime.
-- A Payment Manager, Payment Session, and Payment Instrument created by your
-  application backend.
-- A Policy Gateway and x402 seller that you operate or are authorized to use.
+Complete the [AgentCore Payments quick start](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/payments-getting-started.html)
+to create current AgentCore Payments resources. The repository's
+[Tutorial 00](../../00-getting-started/00-setup-agentcore-payments/) is companion
+material for this sample.
+
+For Coinbase, use **Quick create with Coinbase** when adding a connector to your
+Payment Manager:
+
+1. Subscribe to **Coinbase Wallets for AgentCore Payments** in AWS Marketplace.
+2. In the AgentCore Payments console, create a Payment Manager, add a Coinbase
+   connector, and choose **Quick create with Coinbase**.
+3. Complete Coinbase authorization in the browser and wait for the connector to
+   become `READY`.
+4. Create the Payment Session and Payment Instrument from your application
+   backend.
+
+Quick Create avoids manually obtaining or storing Coinbase credentials. It is
+a setup convenience, not a requirement of the buyer code: the buyer remains
+provider-neutral and can use another configured Payment Manager.
 
 **Warning:** Invoking the Runtime buyer against a live paid seller can create a
 payment proof and may result in settlement. Use an isolated test Payment Session
@@ -120,103 +95,27 @@ grant the agent permission before a paid canary.
 ```text
 policy-enforced-payment-buyer/
 ├── README.md                     # this guide
-├── .env.example                  # non-secret Gateway E2E configuration
 ├── requirements.txt              # public Python dependencies
 ├── buyer/
 │   ├── core.py                   # 402 parsing and policy-before-retry flow
 │   ├── gateway.py                # SigV4-signed Policy Gateway client
-│   ├── local_demo.py             # in-memory x402 seller for local validation
 │   ├── runtime_context.py         # Runtime payload and seller-origin validation
 │   └── runtime_agent.py          # AgentCore Runtime entry point
-├── policies/                     # Cedar templates for the Gateway
-├── scripts/
-│   ├── run_local_e2e.py          # no-side-effect local flow
-│   └── run_gateway_e2e.py        # real Gateway allow and deny probe
-└── tests/                        # local, Gateway, and Runtime-context tests
+└── policies/                     # Cedar templates for the Gateway
 ```
-
-## Quick Start
-
-### 1. Run the local E2E
-
-The local E2E uses an in-memory seller. It does not call AWS, open a listening
-socket, create a payment proof, use a wallet, or settle assets.
-
-```bash
-cd 01-features/08-agents-that-transact/02-use-cases/policy-enforced-payment-buyer
-python3 scripts/run_local_e2e.py
-python3 -m unittest discover -s tests -v
-```
-
-The local tests prove three buyer behaviors:
-
-1. An approved requirement reaches one seller retry.
-2. An amount above the policy ceiling is denied before a retry.
-3. A changed recipient is denied before a retry.
-
-The local receipt is intentionally labelled `simulated`. It is not a payment
-proof or seller settlement result.
-
-### 2. Run the Gateway E2E without payment processing
-
-The Gateway E2E calls the real Policy Gateway twice:
-
-1. It sends the exact requirement returned by the seller and expects
-   `AUTHORIZED`.
-2. It changes only the recipient and expects a denial.
-
-It does not call AgentCore Payments, generate a payment header, create a
-payment proof, or retry the seller.
-
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-
-cp .env.example .env
-# Edit .env with your Gateway and seller values.
-set -a
-. ./.env
-set +a
-
-python3 scripts/run_gateway_e2e.py
-```
-
-Expected output:
-
-```text
-happy_path=AUTHORIZED ...
-failure_path=DENIED scenario=changed_recipient
-payment_processing=NOT_RUN settlement=NOT_APPLICABLE
-```
-
-The Gateway E2E is successful only when both lines appear. An authorization
-for both requests means the Policy is too broad and the script exits with an
-error.
-
-The Cedar Policy engine enforces whether the Gateway may call
-`authorize_payment`; a denied request does not reach the target. The target's
-`{"decision": "AUTHORIZED"}` response is this sample's deterministic success
-contract after Policy permits the call. It is not the Policy engine's decision
-format.
 
 ## How the Buyer Flow Works
 
-```text
-Application backend
-  | supplies a bounded payment context and approved seller origin
-  v
-Runtime buyer
-  | GET seller resource
-  | receive HTTP 402 requirement
-  v
-AgentCore Policy Gateway
-  | authorize or deny the exact payment intent
-  v
-AgentCore Payments
-  | generate payment header only after authorization
-  v
-Seller retry
+```mermaid
+flowchart LR
+    App[Application backend] -->|app-owned session, instrument, Region, and seller origin| Buyer[AgentCore Runtime buyer]
+    Buyer -->|GET paid resource| Seller[x402 seller]
+    Seller -->|HTTP 402 requirement| Buyer
+    Buyer -->|authorize exact resource, recipient, network, asset, and amount| Gateway[AgentCore Policy Gateway]
+    Gateway -->|DENIED| Stop[Return denial without payment]
+    Gateway -->|AUTHORIZED| Payments[AgentCore Payments]
+    Payments -->|payment header| Buyer
+    Buyer -->|one retry with payment header| Seller
 ```
 
 The application backend, rather than the Runtime agent, creates the Payment
@@ -226,6 +125,10 @@ payment-processing operation for the supplied context.
 The buyer does not follow HTTP redirects for the initial 402 request or the
 payment retry. Configure the final seller HTTPS URL in `seller_base_url`; this
 prevents a payment header from being forwarded to another origin.
+
+**Important:** Gateway authorization and a generated payment header are not
+evidence of seller settlement. This sample does not include a live settlement
+canary.
 
 ## Policy Gateway Contract
 
@@ -250,9 +153,7 @@ this JSON text:
 ```
 
 The policy should default-deny. Permit only the intended caller, Gateway
-action, recipient, network, asset, amount ceiling, and seller resource. The
-Gateway E2E deliberately changes the recipient to confirm that this binding is
-enforced.
+action, recipient, network, asset, amount ceiling, and seller resource.
 
 ## Policy Design and Cedar Examples
 
@@ -262,7 +163,7 @@ templates demonstrate a small policy set:
 
 | Template | Use it for | Default |
 |:--|:--|:--|
-| [`payment_authorization_for_iam_principal.cedar`](policies/payment_authorization_for_iam_principal.cedar) | The SigV4 runner's exact IAM principal plus the tool, Gateway, seller resource, recipient, network, asset, and maximum amount | Required starting point for the Gateway E2E |
+| [`payment_authorization_for_iam_principal.cedar`](policies/payment_authorization_for_iam_principal.cedar) | The Runtime's exact IAM principal plus the tool, Gateway, seller resource, recipient, network, asset, and maximum amount | Recommended starting point for an IAM-authenticated Runtime |
 | [`deny_above_ceiling.cedar`](policies/deny_above_ceiling.cedar) | A defense-in-depth block for requests above the amount ceiling | Optional |
 | [`payment_authorization_with_buyer_role.cedar`](policies/payment_authorization_with_buyer_role.cedar) | The baseline rule plus a JWT/OAuth principal-role condition | Optional; only for a Gateway with matching token claims |
 
@@ -296,8 +197,8 @@ to the exact values accepted by the buyer and seller you operate:
 | Maximum amount | `context.input.amount` | Cap one authorization request; the templates use `1000` as an example |
 | Caller identity | `principal` | Bind the SigV4 runner to one IAM role or a JWT/OAuth Gateway to an approved role tag |
 
-The Gateway E2E runner uses SigV4. Start with the IAM-bound template and replace
-`<caller-iam-arn>` with the caller IAM ARN accepted by the Gateway. The
+The Runtime uses SigV4. Start with the IAM-bound template and replace
+`<caller-iam-arn>` with the Runtime IAM ARN accepted by the Gateway. The
 role-aware template is an alternative for a Gateway with JWT/OAuth inbound
 authorization; AgentCore Policy maps token claims to principal tags. Do not
 apply that condition to an IAM-authenticated Gateway.
@@ -330,14 +231,18 @@ created by the application backend:
   "payment_session_id": "payment-session-...",
   "payment_instrument_id": "payment-instrument-...",
   "user_id": "customer-123",
+  "aws_region": "your-aws-region",
   "policy_gateway_url": "https://...",
   "policy_target_name": "PaymentPolicyTools",
   "seller_base_url": "https://seller.example"
 }
 ```
 
-`seller_base_url` is required. The buyer rejects a resource URL outside that
-origin before it retrieves a 402 requirement.
+`aws_region` is application-owned configuration. Use the Region where the
+Payment Manager and Policy Gateway are deployed; it overrides `AWS_REGION` or
+`AWS_DEFAULT_REGION` configured for the Runtime. `seller_base_url` is required.
+The buyer rejects a resource URL outside that origin before it retrieves a 402
+requirement.
 
 The Runtime exposes one tool: `purchase_paid_resource`. It does not expose a
 generic HTTP tool or a direct payment-header function.
@@ -348,8 +253,8 @@ generic HTTP tool or a direct payment-header function.
   of seller settlement.
 - Do not give the Runtime role permission to create or increase a Payment
   Session.
-- Keep testnet funding, token approvals, and mainnet payments outside the
-  local and Gateway E2E paths.
+- Keep testnet funding, token approvals, and mainnet payments outside this
+  sample's initial deployment.
 - A stable `policy_session_id` is required only for an advanced temporal
   discover-before-purchase policy. This sample validates a single
   authorization decision.

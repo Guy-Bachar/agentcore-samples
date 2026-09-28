@@ -54,20 +54,16 @@ class AgentCorePaymentExecutor:
 
 
 def _purchase_tool(context: RuntimePaymentContext):
-    region = os.environ.get("AWS_REGION", "").strip()
-    if not region:
-        raise RuntimeError("AWS_REGION is required for the Runtime payment buyer")
-
     buyer = PolicyEnforcedBuyer(
         policy_authorizer=GatewayPolicyAuthorizer(
             GatewayPolicyContext(
                 gateway_url=context.gateway_url,
                 target_name=context.target_name,
                 policy_session_id=context.policy_session_id,
-                region=region,
+                region=context.region,
             )
         ),
-        payment_executor=AgentCorePaymentExecutor(context, region),
+        payment_executor=AgentCorePaymentExecutor(context, context.region),
     )
 
     @tool

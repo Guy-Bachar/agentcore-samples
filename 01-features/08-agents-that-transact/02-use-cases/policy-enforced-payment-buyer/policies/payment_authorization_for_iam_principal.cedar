@@ -1,4 +1,4 @@
-// Baseline policy for the SigV4-signed Gateway E2E runner.
+// Baseline policy for the SigV4-signed Runtime buyer.
 //
 // Replace every <...> value with a value from your own deployment. For an
 // AWS_IAM Gateway, principal.id contains the caller's IAM ARN.

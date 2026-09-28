@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -22,6 +23,7 @@ class RuntimePaymentContext:
     target_name: str
     seller_base_url: str
     policy_session_id: str
+    region: str
 
 
 def runtime_context(payload: dict[str, Any]) -> RuntimePaymentContext:
@@ -36,6 +38,7 @@ def runtime_context(payload: dict[str, Any]) -> RuntimePaymentContext:
         target_name=str(payload.get("policy_target_name") or "PaymentPolicyTools"),
         seller_base_url=_required(payload, "seller_base_url").rstrip("/"),
         policy_session_id=str(payload.get("policy_session_id") or uuid.uuid4()),
+        region=_region(payload),
     )
 
 
@@ -60,3 +63,18 @@ def _required(payload: dict[str, Any], key: str) -> str:
     if not value:
         raise ValueError(f"Missing required invocation field: {key}")
     return value
+
+
+def _region(payload: dict[str, Any]) -> str:
+    """Resolve the application-owned Region without hardcoding a deployment."""
+
+    return (
+        str(payload.get("aws_region") or "").strip()
+        or os.environ.get("AWS_REGION", "").strip()
+        or os.environ.get("AWS_DEFAULT_REGION", "").strip()
+        or _missing_region()
+    )
+
+
+def _missing_region() -> str:
+    raise ValueError("Set aws_region in the application-owned payload or configure AWS_REGION for the Runtime")
